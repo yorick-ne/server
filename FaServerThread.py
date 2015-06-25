@@ -90,7 +90,7 @@ from gameModes.customDiamondGamesContainer import customDiamondGamesContainerCla
 from gameModes.customCiviliansGamesContainer import customCiviliansGamesContainerClass # custom Blackops games
 from gameModes.customVanillaGamesContainer import customVanillaGamesContainerClass # custom Blackops games
 
-from gameModes.balanceTestingGamesContainer import balanceTestingGamesContainerClass # custom Blackops games
+from gameModes.balanceTestingGamesContainer import balanceTestingGamesContainerClass
 
 
 from gameModes.coopGamesContainer import coopGamesContainerClass # custom Blackops games
@@ -263,8 +263,8 @@ class FAServerThread(QObject):
         if not self.parent.games.isaContainer("phantomx") :
             self.parent.games.addContainer("phantomx", customPhantomXGamesContainerClass(self.parent.db, self.parent.games))
             
-#        if not self.parent.games.isaContainer("balancetesting") :
-#            self.parent.games.addContainer("balancetesting", balanceTestingGamesContainerClass(self.parent.db, self.parent.games))
+        if not self.parent.games.isaContainer("balancetesting") :
+            self.parent.games.addContainer("balancetesting", balanceTestingGamesContainerClass(self.parent.db, self.parent.games))
 
         if not self.parent.games.isaContainer("vanilla") :
             self.parent.games.addContainer("vanilla", customVanillaGamesContainerClass(self.parent.db, self.parent.games))
