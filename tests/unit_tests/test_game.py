@@ -291,7 +291,8 @@ def test_to_dict(game, create_player):
             team: [player.login for player in game.players
                    if game.get_player_option(player.id, 'Team') == team]
             for team in game.teams
-        }
+        },
+        "rating_range": (None, None)
     }
     assert data == expected
 

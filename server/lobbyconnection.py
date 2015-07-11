@@ -1645,7 +1645,8 @@ Thanks,\n\
             'name': title if title else self.player.login,
             'mapname': mapname,
             'password': password,
-            'version': None
+            'version': None,
+            'rating_range': message.get('rating_range', (None, None))
         })
 
         self.player.action = "HOST"

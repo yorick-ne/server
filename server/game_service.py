@@ -59,7 +59,8 @@ class GameService:
                     name: str=None,
                     mapname: str=None,
                     password: str=None,
-                    version=None):
+                    version=None,
+                    rating_range: (int, int)=(None, None)):
         """
         Main entrypoint for creating new games
         """
@@ -72,6 +73,7 @@ class GameService:
         if not game:
             raise ValueError('Container {} refused to make game: {}'.format(game_mode, game))
         self._logger.info("{} created in {} container".format(game, game_mode))
+        game.rating_range = rating_range
         game.mapName = mapname
         game.access = visibility
         game.version = version

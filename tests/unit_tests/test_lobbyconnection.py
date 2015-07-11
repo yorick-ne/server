@@ -22,7 +22,8 @@ def test_game_info():
         'mapname': 'scmp_007',
         'password': None,
         'lobby_rating': 1,
-        'options': []
+        'options': [],
+        'rating_range': (None, None)
     }
 
 @pytest.fixture()
@@ -85,7 +86,8 @@ def test_command_game_host_creates_game(fa_server_thread,
         'host': players.hosting,
         'password': test_game_info['password'],
         'mapname': test_game_info['mapname'],
-        'version': test_game_info['version']
+        'version': test_game_info['version'],
+        'rating_range': test_game_info['rating_range']
     }
     mock_games.create_game\
         .assert_called_with(**expected_call)

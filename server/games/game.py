@@ -142,6 +142,7 @@ class Game(BaseGame):
                             'NoRushOption': 'Off',
                             'RestrictedCategories': 0}
 
+        self.rating_range = (None, None)
         self.mods = []
         self._logger.info("{} created".format(self))
 
@@ -641,7 +642,8 @@ class Game(BaseGame):
                 team: [player.login for player in self.players
                        if self.get_player_option(player.id, 'Team') == team]
                 for team in self.teams
-            }
+            },
+            "rating_range": self.rating_range
         }
 
     @property
