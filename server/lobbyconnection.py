@@ -41,6 +41,7 @@ from Crypto import Random
 from Crypto.Random.random import choice
 from Crypto.Cipher import Blowfish
 from Crypto.Cipher import AES
+from pbkdf2 import pbkdf2_bin
 import pygeoip
 import trueskill
 from trueskill import Rating
@@ -54,6 +55,16 @@ import config
 from config import Config
 from server.protocol import QDataStreamProtocol
 
+# These two can be changed according to needs without any trouble (remember to update the ones in
+# PHP as well!)
+PBKDF2_HASH_ALGORITHM = "sha256"
+PBKDF2_ITERATIONS = 1000
+
+# Changing these two is more problematic, and probably not necessary. They're pretty overkill at the
+# time of writing, so you can probably get more than enough stretch out of cranking up the iteration
+# count.
+PBKDF2_SALT_BYTE_SIZE = 16
+PBKDF2_HASH_BYTE_SIZE = 48
 
 gi = pygeoip.GeoIP('GeoIP.dat', pygeoip.MEMORY_CACHE)
 
@@ -476,7 +487,7 @@ class LobbyConnection(QObject):
 
         # Add nonce
         rng = Random.new()
-        nonce = ''.join(choice(string.ascii_uppercase + string.digits) for _ in range(256))
+        nonce = ''.join(choice(string.ascii_letters + string.digits) for _ in range(256))
 
         # The data payload we need on the PHP side
         plaintext = (login + "," + password + "," + email + "," + expiry + "," + nonce).encode('utf-8')
@@ -801,12 +812,39 @@ Thanks,\n\
                 query.addBindValue(avatar)
                 query.exec_()
 
+
+    # Given a *correct* username/password combination, rewrite the user's hash/salt (useful for
+    # migrating users to salting, as well as handling changed work factors for pbkdf or such.
+    # Remember to keep the work factors etc. in sync with those in PHP!
+    @asyncio.coroutine
+    def update_hash_for_user(self, cursor, login, password):
+        # Generate a salt
+        newSalt = ''.join(choice(string.ascii_letters + string.digits) for _ in range(PBKDF2_SALT_BYTE_SIZE))
+        newHash = base64.b64decode(pbkdf2_bin(password, newSalt, PBKDF2_ITERATIONS, PBKDF2_HASH_BYTE_SIZE, getattr(hashlib, PBKDF2_HASH_ALGORITHM)))
+
+        # Required format is:
+        # algorithm:iteration_count:salted_hash
+        # (6B)       (5B (str) :D)     (64B)
+        newHash = PBKDF2_HASH_ALGORITHM + ":" + PBKDF2_ITERATIONS + ":" + newHash
+
+        yield from cursor.execute("UPDATE login SET password = %s, salt = %s WHERE login = %s", newHash, newSalt, login)
+
+    # Constant-time tring comparison
+    def safe_str_cmp(self, a, b):
+        if len(a) != len(b):
+            return False
+        rv = 0
+        for x, y in zip(a, b):
+            rv |= ord(x) ^ ord(y)
+        return rv == 0
+
     @asyncio.coroutine
     def check_user_login(self, cursor, login, password):
         # TODO: Hash passwords server-side so the hashing actually *does* something.
         yield from cursor.execute("SELECT login.id as id,"
                                   "login.email as email,"
                                   "login.password as password,"
+                                  "login.salt as salt,"
                                   "login.steamchecked as steamchecked,"
                                   "lobby_ban.reason as reason,"
                                   "lobby_admin.group as admin_group "
@@ -820,11 +858,38 @@ Thanks,\n\
                                text="Login not found or password incorrect. They are case sensitive."))
             return
 
-        player_id, self.email, dbPassword, self.steamChecked, ban_reason, permissionGroup = yield from cursor.fetchone()
-        if dbPassword != password:
-            self.sendJSON(dict(command="notice", style="error",
-                               text="Login not found or password incorrect. They are case sensitive."))
-            return
+        player_id, self.email, dbPassword, salt, self.steamChecked, ban_reason, permissionGroup = yield from cursor.fetchone()
+        if salt is not None:
+            # Hooray, a salted user! Do the clever (read: secure) thing
+            # Format of the password field is:
+            # algorithm:iteration_count:salted_hash
+
+            algorithm, iteration_count, salted_hash = dbPassword.split(':')
+            iteration_count = int(iteration_count)
+
+            salted_hash = base64.b64decode(salted_hash)
+
+            # Recalculate the hash using the parameters that were stored.
+            input_hash = pbkdf2_bin(password, salt, iteration_count, PBKDF2_HASH_BYTE_SIZE, getattr(hashlib, algorithm))
+
+            if not self.safe_str_cmp(salted_hash, input_hash):
+                self.sendJSON(dict(command="notice", style="error",
+                                   text="Login not found or password incorrect. They are case sensitive."))
+                return
+
+            # Have the parameters changed? If so, we should rehash this user to reflect our new
+            # policy.
+            if iteration_count != PBKDF2_ITERATIONS or algorithm != PBKDF2_HASH_ALGORITHM:
+                self.update_hash_for_user(cursor, login, password)
+        else:
+            # User doesn't have a salt yet. Authenticate them the old way and, if they pass, (since
+            # you now know their password) get them salted up.
+            if dbPassword != password:
+                self.sendJSON(dict(command="notice", style="error",
+                                   text="Login not found or password incorrect. They are case sensitive."))
+                return
+
+            self.update_hash_for_user(cursor, login, password)
 
         if ban_reason != None:
             reason = "You are banned from FAF.\n Reason :\n " + ban_reason
