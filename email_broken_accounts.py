@@ -13,22 +13,20 @@ import sys
 
 MAIL_ADDRESS = "admin@forever.com"
 
-def send_email(text, to_name, to_email, subject):
+def send_email(s, text, to_name, to_email, subject):
     msg = MIMEText(text)
 
     msg['Subject'] = subject
     msg['From'] = email.utils.formataddr(('Forged Alliance Forever', MAIL_ADDRESS))
     msg['To'] = email.utils.formataddr((to_name, to_email))
 
-    s = smtplib.SMTP_SSL(Config['smtp_server'], 465, Config['smtp_server'],
-                         timeout=5)
-    s.login(Config['smtp_username'], Config['smtp_password'])
-
     s.sendmail(MAIL_ADDRESS, [to_email], msg.as_string())
-    s.quit()
 
 @asyncio.coroutine
 def do_the_thing():
+    s = smtplib.SMTP_SSL(Config['smtp_server'], 465, Config['smtp_server'],
+                         timeout=5)
+    s.login(Config['smtp_username'], Config['smtp_password'])
 
     with (yield from db_pool) as conn:
         cursor = yield from conn.cursor()
@@ -70,7 +68,7 @@ def do_the_thing():
 
         for name, emails in candidates.items():
             for email in emails:
-                send_email(
+                send_email(s,
 """Hello %s
 
 Due technical fault a few years ago, it was for a time possible to create FAF accounts with usernames
@@ -121,7 +119,7 @@ to most recently have been active.
         for email, usernames in candidates.items():
             print(email)
             print(",".join(usernames))
-            send_email(
+            send_email(s,
 """Hello %s
 
 Due to a technical fault a few years ago, this email address has ended up associated with several
@@ -140,6 +138,7 @@ If you don't reply to this email, we'll merge the accounts into the one that app
 to most recently have been active.
 """ % (usernames[0], ", ".join(usernames)), usernames[0], email, "Forged Alliance Forever: Account query from the admins (email)")
 
+    s.quit()
 
 if __name__ == "__main__":
 
