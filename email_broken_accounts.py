@@ -59,7 +59,7 @@ def do_the_thing():
 
             collected_emails.append(email)
             collected_cases.append(login)
-            last_login = login
+            last_login = login.lower()
 
         candidates[login.lower()] = collected_emails
         cases[login.lower()] = collected_cases
@@ -158,3 +158,4 @@ if __name__ == "__main__":
     db_pool = loop.run_until_complete(pool_fut)
 
     loop.run_until_complete(asyncio.async(do_the_thing()))
+    loop.close()
