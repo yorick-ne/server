@@ -31,6 +31,7 @@ def send_email(text, to_name, to_email, subject):
 
 @asyncio.coroutine
 def do_the_thing():
+
     with (yield from db_pool) as conn:
         cursor = yield from conn.cursor()
 
@@ -47,7 +48,7 @@ def do_the_thing():
         collected_emails = []
         collected_cases = []
         for i in range(0, cursor.rowcount):
-            login, email = cursor.fetchone()
+            login, email = yield from cursor.fetchone()
 
             if login.lower() != last_login:
                 candidates[login.lower()] = collected_emails
@@ -105,7 +106,7 @@ to most recently have been active.
         email = None
         usernames = []
         for i in range(0, cursor.rowcount):
-            login, email = cursor.fetchone()
+            login, email = yield from cursor.fetchone()
 
             if email.lower() != last_email:
                 last_email = email.lower()
@@ -143,6 +144,7 @@ to most recently have been active.
 
 
 if __name__ == "__main__":
+
     app = QtCore.QCoreApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
@@ -156,4 +158,4 @@ if __name__ == "__main__":
                                                loop=loop))
     db_pool = loop.run_until_complete(pool_fut)
 
-    asyncio.async(do_the_thing())
+    loop.run_until_complete(asyncio.async(do_the_thing()))
