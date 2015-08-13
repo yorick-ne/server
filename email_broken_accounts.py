@@ -14,8 +14,8 @@ import sys
 MAIL_ADDRESS = "admin@forever.com"
 
 def send_email(text, to_name, to_email, subject):
-    print(text)
-    print("To: %s" % to_email)
+    # print(text)
+    # print("To: %s" % to_email)
     # msg = MIMEText(text)
     #
     # msg['Subject'] = subject
@@ -109,8 +109,8 @@ to most recently have been active.
             login, email = yield from cursor.fetchone()
 
             if email.lower() != last_email:
-                last_email = email.lower()
                 candidates[last_email] = usernames
+                last_email = email.lower()
                 usernames = []
 
             usernames.append(login)
