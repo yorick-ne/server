@@ -64,7 +64,7 @@ def do_the_thing():
 
         for key, list in candidates.items():
             print(key)
-            print(list.join(","))
+            print(", ".join(list))
 
 
         for name, emails in candidates.items():
@@ -94,7 +94,7 @@ Please let us know:
 
 If you don't reply to this email, we'll merge the accounts into the one that appears
 to most recently have been active.
-""" % (name, cases[name.lower()].join(", ")), name, email, "Forged Alliance Forever: Account query from the admins (username)")
+""" % (name, ", ".join(cases[name.lower()])), name, email, "Forged Alliance Forever: Account query from the admins (username)")
 
         # Duplicate emails
         yield from cursor.execute("SELECT login, email FROM login WHERE LOWER(email) IN (SELECT LOWER(email) FROM login GROUP BY LOWER(email) HAVING COUNT(*) > 1) ORDER BY LOWER(email);")
@@ -119,7 +119,7 @@ to most recently have been active.
 
         for key, list in candidates.items():
             print(key)
-            print(list.join(","))
+            print(",".join(list))
 
 
         for email, usernames in candidates.items():
@@ -140,7 +140,7 @@ know:
 
 If you don't reply to this email, we'll merge the accounts into the one that appears
 to most recently have been active.
-""" % (usernames[0], usernames.join(", ")), usernames[0], email, "Forged Alliance Forever: Account query from the admins (email)")
+""" % (usernames[0], ", ".join(usernames)), usernames[0], email, "Forged Alliance Forever: Account query from the admins (email)")
 
 
 if __name__ == "__main__":
