@@ -59,6 +59,7 @@ def do_the_thing():
 
             collected_emails.append(email)
             collected_cases.append(login)
+            last_login = login
 
         candidates[login.lower()] = collected_emails
         cases[login.lower()] = collected_cases
@@ -111,10 +112,10 @@ to most recently have been active.
 
             if email.lower() != last_email and last_email != "":
                 candidates[last_email] = usernames
-                last_email = email.lower()
                 usernames = []
 
             usernames.append(login)
+            last_email = email.lower()
 
         candidates[email.lower()] = usernames
 
