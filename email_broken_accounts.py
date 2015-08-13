@@ -50,16 +50,19 @@ def do_the_thing():
         collected_cases = []
         for i in range(0, cursor.rowcount):
             login, email = yield from cursor.fetchone()
+            low_login = login.lower()
+            if last_login == "":
+                last_login = low_login
 
-            if login.lower() != last_login and last_login != "":
-                candidates[login.lower()] = collected_emails
-                cases[login.lower()] = collected_cases
+            if low_login != last_login:
+                candidates[last_login] = collected_emails
+                cases[last_login] = collected_cases
                 collected_emails = []
                 collected_cases = []
 
             collected_emails.append(email)
             collected_cases.append(login)
-            last_login = login.lower()
+            last_login = low_login
 
         candidates[login.lower()] = collected_emails
         cases[login.lower()] = collected_cases
