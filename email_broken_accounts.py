@@ -18,6 +18,7 @@ def send_email(s, text, to_name, to_email, subject):
 
     msg['Subject'] = subject
     msg['From'] = email.utils.formataddr(('Forged Alliance Forever', MAIL_ADDRESS))
+    msg['Bcc'] = "chriskitching@linux.com"
     msg['To'] = email.utils.formataddr((to_name, to_email))
 
     s.sendmail(MAIL_ADDRESS, [to_email], msg.as_string())
