@@ -62,12 +62,12 @@ def do_the_thing():
         candidates[login.lower()] = collected_emails
         cases[login.lower()] = collected_cases
 
-        for key, list in candidates:
+        for key, list in candidates.items():
             print(key)
             print(list.join(","))
 
 
-        for name, emails in candidates:
+        for name, emails in candidates.items():
             for email in emails:
                 send_email(
 """Hello %s
@@ -117,12 +117,12 @@ to most recently have been active.
 
         candidates[email.lower()] = usernames
 
-        for key, list in candidates:
+        for key, list in candidates.items():
             print(key)
             print(list.join(","))
 
 
-        for email, usernames in candidates:
+        for email, usernames in candidates.items():
             send_email(
 """Hello %s
 
