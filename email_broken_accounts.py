@@ -156,4 +156,4 @@ if __name__ == "__main__":
                                                loop=loop))
     db_pool = loop.run_until_complete(pool_fut)
 
-    do_the_thing()
+    asyncio.async(do_the_thing())
