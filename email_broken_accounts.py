@@ -14,6 +14,7 @@ import sys
 MAIL_ADDRESS = "admin@forever.com"
 
 def send_email(text, to_name, to_email, subject):
+    pass
     # print(text)
     # print("To: %s" % to_email)
     # msg = MIMEText(text)
