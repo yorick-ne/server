@@ -118,12 +118,9 @@ to most recently have been active.
 
         candidates[email.lower()] = usernames
 
-        for key, list in candidates.items():
-            print(key)
-            print(",".join(list))
-
-
         for email, usernames in candidates.items():
+            print(email)
+            print(",".join(usernames))
             send_email(
 """Hello %s
 
