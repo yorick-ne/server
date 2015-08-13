@@ -146,6 +146,7 @@ class Ladder1V1GamesContainer(GamesContainer):
         
         player1.state = PlayerState.HOSTING
         gameid = self.games_service.createUuid(player1.id)
+
         player2.state = PlayerState.JOINING
 
         map_pool = self.choose_ladder_map_pool(player1, player2)
