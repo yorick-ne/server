@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import email
 from email.mime.text import MIMEText
 import smtplib
@@ -140,7 +142,7 @@ to most recently have been active.
 """ % (usernames[0], usernames.join(", ")), usernames[0], email, "Forged Alliance Forever: Account query from the admins (email)")
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     app = QtCore.QCoreApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
