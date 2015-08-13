@@ -14,21 +14,18 @@ import sys
 MAIL_ADDRESS = "admin@forever.com"
 
 def send_email(text, to_name, to_email, subject):
-    pass
-    # print(text)
-    # print("To: %s" % to_email)
-    # msg = MIMEText(text)
-    #
-    # msg['Subject'] = subject
-    # msg['From'] = email.utils.formataddr(('Forged Alliance Forever', MAIL_ADDRESS))
-    # msg['To'] = email.utils.formataddr((to_name, to_email))
-    #
-    # s = smtplib.SMTP_SSL(Config['smtp_server'], 465, Config['smtp_server'],
-    #                      timeout=5)
-    # s.login(Config['smtp_username'], Config['smtp_password'])
-    #
-    # s.sendmail(MAIL_ADDRESS, [to_email], msg.as_string())
-    # s.quit()
+    msg = MIMEText(text)
+
+    msg['Subject'] = subject
+    msg['From'] = email.utils.formataddr(('Forged Alliance Forever', MAIL_ADDRESS))
+    msg['To'] = email.utils.formataddr((to_name, to_email))
+
+    s = smtplib.SMTP_SSL(Config['smtp_server'], 465, Config['smtp_server'],
+                         timeout=5)
+    s.login(Config['smtp_username'], Config['smtp_password'])
+
+    s.sendmail(MAIL_ADDRESS, [to_email], msg.as_string())
+    s.quit()
 
 @asyncio.coroutine
 def do_the_thing():
@@ -70,7 +67,6 @@ def do_the_thing():
         for key, list in candidates.items():
             print(key)
             print(", ".join(list))
-
 
         for name, emails in candidates.items():
             for email in emails:
