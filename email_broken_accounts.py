@@ -51,7 +51,7 @@ def do_the_thing():
         for i in range(0, cursor.rowcount):
             login, email = yield from cursor.fetchone()
 
-            if login.lower() != last_login:
+            if login.lower() != last_login and last_login != "":
                 candidates[login.lower()] = collected_emails
                 cases[login.lower()] = collected_cases
                 collected_emails = []
@@ -109,7 +109,7 @@ to most recently have been active.
         for i in range(0, cursor.rowcount):
             login, email = yield from cursor.fetchone()
 
-            if email.lower() != last_email:
+            if email.lower() != last_email and last_email != "":
                 candidates[last_email] = usernames
                 last_email = email.lower()
                 usernames = []
