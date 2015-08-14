@@ -7,11 +7,11 @@ from server.games.game import Game, GameState
 
 
 @with_logger
-class GamesContainer(object):
+class GamesContainer():
     """Class for containing games"""
     listable = True
 
-    def __init__(self, name, nice_name, db, games_service=None):
+    def __init__(self, name, nice_name, db):
         self.games = []
 
         self.host = True
@@ -24,7 +24,6 @@ class GamesContainer(object):
 
         self.game_mode = name
         self.gameNiceName = nice_name
-        self.parent = games_service
 
         self.options = []
 

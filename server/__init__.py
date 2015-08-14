@@ -6,7 +6,6 @@ Copyright (c) 2015 Michael Søndergaard <sheeo@sheeo.dk>
 
 Distributed under GPLv3, see license.txt
 """
-from server.games.game import GameState
 
 __version__ = '0.1'
 __author__ = 'Chris Kitching, Dragonfire, Gael Honorez, Jeroen De Dauw, Crotalus, Michael Søndergaard'
@@ -15,34 +14,41 @@ __license__ = 'GPLv3'
 __copyright__ = 'Copyright (c) 2011-2015 ' + __author__
 
 import asyncio
-from asyncio import AbstractEventLoop
 import json
+import config
+
+player_service = None
+game_service = None
+
+from .playerservice import PlayerService
+
+# Initialise the game and player services.
+@asyncio.coroutine
+def initialise_player_service():
+    global player_service
+    player_service = playerservice.PlayerService()
+    yield from player_service.really_update_static_ish_data()
+
+@asyncio.coroutine
+def initialise_game_service(players, db):
+    global game_service
+    game_service = gameservice.GameService(players, db)
+    yield from game_service.load_game_id_counter()
+
+asyncio.get_event_loop().run_until_complete(asyncio.async(initialise_player_service()))
+asyncio.get_event_loop().run_until_complete(asyncio.async(initialise_game_service()))
+
+from .gameservice import GameService
 from .gameconnection import GameConnection
 from .natpacketserver import NatPacketServer
 
-import config
 from server.games import GamesContainer, Ladder1V1GamesContainer, CoopGamesContainer
 from server.lobbyconnection import LobbyConnection
 from server.protocol import QDataStreamProtocol
 from server.servercontext import ServerContext
-from server.player_service import PlayerService
-from server.game_service import GameService
 from server.control import init as run_control_server
-import server.db
-
-__all__ = [
-    'run_lobby_server',
-    'run_game_server',
-    'games',
-    'control',
-    'abc',
-    'protocol'
-]
-
 
 def run_lobby_server(address: (str, int),
-                     player_service: PlayerService,
-                     games: GameService,
                      db,
                      loop):
     """
@@ -50,22 +56,22 @@ def run_lobby_server(address: (str, int),
 
     :param address: Address to listen on
     :param player_service: Service to talk to about players
-    :param games: Service to talk to about games
+    :param game_service: Service to talk to about games
     :param db: QSqlDatabase
     :param loop: Event loop to use
     :return ServerContext: A server object
     """
     def report_dirty_games():
-        dirties = games.dirty_games
-        games.clear_dirty()
+        dirties = game_service.dirty_games
+        game_service.clear_dirty()
 
         def encode(game):
             return QDataStreamProtocol.pack_block(
                 QDataStreamProtocol.pack_qstring(json.dumps(game.to_dict()))
             )
         for game in dirties:
-            if game.state == GameState.ENDED:
-                games.remove_game(game)
+            if game.state == server.games.game.GameState.ENDED:
+                game_service.remove_game(game)
         message = b''.join(map(encode, dirties))
         if len(message) > 0:
             ctx.broadcast_raw(message, validate_fn=lambda lobby_conn: lobby_conn.authenticated)
@@ -77,8 +83,6 @@ def run_lobby_server(address: (str, int),
 
     def initialize_connection():
         return LobbyConnection(context=ctx,
-                               games=games,
-                               players=player_service,
                                db=db,
                                loop=loop)
     ctx = ServerContext(initialize_connection, name="LobbyServer", loop=loop)
@@ -88,8 +92,6 @@ def run_lobby_server(address: (str, int),
 
 
 def run_game_server(address: (str, int),
-                    player_service: PlayerService,
-                    games: GameService,
                     loop):
     """
     Run the game server
@@ -99,7 +101,7 @@ def run_game_server(address: (str, int),
     nat_packet_server = NatPacketServer(loop, config.LOBBY_UDP_PORT)
 
     def initialize_connection():
-        gc = GameConnection(loop, player_service, games)
+        gc = GameConnection(loop)
         nat_packet_server.subscribe(gc, ['ProcessServerNatPacket'])
         return gc
     ctx = ServerContext(initialize_connection, name='GameServer', loop=loop)

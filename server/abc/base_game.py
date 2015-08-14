@@ -1,6 +1,5 @@
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from enum import Enum, IntEnum, unique
-from server.players import Player
 
 @unique
 class GameConnectionState(Enum):

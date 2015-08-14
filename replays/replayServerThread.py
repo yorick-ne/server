@@ -8,6 +8,8 @@ import config
 from config import Config
 from server.db import db_pool
 
+from server.db import db_pool
+
 import asyncio
 import os
 import logging

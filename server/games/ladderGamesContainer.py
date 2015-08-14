@@ -6,22 +6,20 @@ import config
 
 from .gamesContainer import  GamesContainer
 from .ladderGame import Ladder1V1Game
-import server
 from server.players import Player, PlayerState
 from server.db import db_pool
-
+from server import game_service
 
 class Ladder1V1GamesContainer(GamesContainer):
     """Class for 1vs1 ladder games"""
     listable = False
 
-    def __init__(self, db, games_service, name='ladder1v1', nice_name='ladder 1 vs 1'):
-        super(Ladder1V1GamesContainer, self).__init__(name, nice_name, db, games_service)
+    def __init__(self, db, name='ladder1v1', nice_name='ladder 1 vs 1'):
+        super(Ladder1V1GamesContainer, self).__init__(name, nice_name, db)
 
         self.players = []
         self.host = False
         self.join = False
-        self.games_service = games_service
 
     def getLeague(self, season, player):
         with (yield from db_pool) as conn:

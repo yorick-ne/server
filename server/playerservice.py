@@ -1,21 +1,18 @@
-import aiomysql
+from server.db import db_pool
 import asyncio
 import aiocron
 import marisa_trie
 
-class PlayerService(object):
-    def __init__(self, db_pool: aiomysql.Pool):
+class PlayerService():
+    def __init__(self):
         self.players = []
         self.logins = []
-        self.db_pool = db_pool
 
         # Static-ish data fields.
         self.privileged_users = {}
         self.uniqueid_exempt = {}
         self.client_version_info = (0, None)
         self.blacklisted_email_domains = {}
-
-        asyncio.async(self.really_update_static_ish_data())
 
     def __len__(self):
         return len(self.players)
@@ -32,7 +29,7 @@ class PlayerService(object):
         :param rating: 'global' or 'ladder1v1'
         :param new_rating: New rating, if None, fetches the rating from the database
         """
-        with (yield from self.db_pool) as conn:
+        with (yield from db_pool) as conn:
             cursor = yield from conn.cursor()
             if rating == 'global':
                 mean, deviation = player.global_rating
@@ -44,7 +41,7 @@ class PlayerService(object):
 
     @asyncio.coroutine
     def fetch_player_data(self, player):
-        with (yield from self.db_pool) as conn:
+        with (yield from db_pool) as conn:
             cur = yield from conn.cursor()
             yield from cur.execute('SELECT mean, deviation, numGames FROM `global_rating` '
                                    'WHERE id=%s', player.id)
@@ -115,7 +112,7 @@ class PlayerService(object):
         if online:
             return online
 
-        with (yield from self.db_pool) as conn:
+        with (yield from db_pool) as conn:
             cursor = yield from conn.cursor()
 
             yield from cursor.execute("SELECT id FROM login WHERE login = %s", name)
@@ -140,7 +137,7 @@ class PlayerService(object):
         Update rarely-changing data, such as the admin list and the list of users exempt from the
         uniqueid check.
         """
-        with (yield from self.db_pool) as conn:
+        with (yield from db_pool) as conn:
             # Admins/mods
             cursor = yield from conn.cursor()
             yield from cursor.execute("SELECT `user_id`, `group` FROM lobby_admin")

@@ -18,7 +18,7 @@ import string
 import email
 from email.mime.text import MIMEText
 
-from PySide.QtCore import QByteArray, QDataStream, QIODevice, QFile, QObject
+from PySide.QtCore import QIODevice, QFile, QObject
 from PySide.QtSql import QSqlQuery
 from Crypto import Random
 from Crypto.Random.random import choice
@@ -26,14 +26,14 @@ from Crypto.Cipher import Blowfish
 from Crypto.Cipher import AES
 import pygeoip
 import trueskill
-import server
 from trueskill import Rating
 
 from server.decorators import timed, with_logger
 from server.games.game import GameState
-from server.players import *
+from server import game_service
+from server import player_service
 from server.db import db_pool
-from .game_service import GameService
+from server.players import *
 from passwords import PRIVATE_KEY, MAIL_ADDRESS, VERIFICATION_HASH_SECRET, VERIFICATION_SECRET_KEY
 import config
 from config import Config
@@ -46,12 +46,10 @@ MAX_ACCOUNTS_PER_MACHINE = 3
 @with_logger
 class LobbyConnection(QObject):
     @timed()
-    def __init__(self, loop, context=None, games: GameService=None, players=None, db=None):
+    def __init__(self, loop, context=None, db=None):
         super(LobbyConnection, self).__init__()
         self.loop = loop
         self.db = db
-        self.games = games
-        self.players = players
         self.context = context
         self.ladderPotentialPlayers = []
         self.warned = False
@@ -428,7 +426,7 @@ class LobbyConnection(QObject):
             reply_no()
             return
 
-        if self.players.has_blacklisted_domain(user_email):
+        if player_service.has_blacklisted_domain(user_email):
             # We don't like disposable emails.
             text = "Dear " + login + ",\n\n\
 Please use a non-disposable email address.\n\n\
@@ -571,11 +569,11 @@ Thanks,\n\
 
     @timed
     def send_mod_list(self):
-        self.protocol.send_messages(self.games.all_game_modes())
+        self.protocol.send_messages(game_service.all_game_modes())
 
     @timed()
     def send_game_list(self):
-        self.protocol.send_messages([game.to_dict() for game in self.games.active_games])
+        self.protocol.send_messages([game.to_dict() for game in game_service.active_games])
 
     def command_ladder_maps(self, message):
         maplist = message['maps']
@@ -618,7 +616,7 @@ Thanks,\n\
         with (yield from db_pool) as conn:
             cursor = yield from conn.cursor()
 
-            yield from cursor.execute(query, self.players.get_player_id(target).id, self.player.id)
+            yield from cursor.execute(query, player_service.get_player_id(target).id, self.player.id)
 
     @timed()
     @asyncio.coroutine
@@ -639,7 +637,7 @@ Thanks,\n\
         with (yield from db_pool) as conn:
             cursor = yield from conn.cursor()
 
-            yield from cursor.execute(query, self.player.id, self.players.get_player_id(target))
+            yield from cursor.execute(query, self.player.id, player_service.get_player_id(target))
 
     @timed()
     def command_admin(self, message):
@@ -649,7 +647,7 @@ Thanks,\n\
             if action == "closeFA":
                 who = message['user']
 
-                player = self.players.findByName(who)
+                player = player_service.findByName(who)
                 if player:
                     self._logger.info('Administrative action: {} closed game for {}'.format(self.player, player))
                     player.lobbyThread.sendJSON(dict(command="notice", style="info",
@@ -662,7 +660,7 @@ Thanks,\n\
             elif action == "closelobby":
                 who = message['user']
 
-                player = self.players.findByName(who)
+                player = player_service.findByName(who)
                 if player:
                     self._logger.info('Administrative action: {} closed game for {}'.format(self.player, player))
                     player.lobbyThread.sendJSON(dict(command="notice", style="info",
@@ -736,7 +734,7 @@ Thanks,\n\
                 channel = message['channel']
 
                 for who in whos:
-                    player = self.players.findByName(who)
+                    player = player_service.findByName(who)
                     if player:
                         player.lobbyThread.sendJSON(dict(command="social", autojoin=[channel]))
 
@@ -891,7 +889,7 @@ Thanks,\n\
             # TODO: Do this somewhere less insane. (no need to query our db for this every login!)
             with (yield from db_pool) as conn:
                 cursor = yield from conn.cursor()
-                versionDB, updateFile = self.players.client_version_info
+                versionDB, updateFile = player_service.client_version_info
 
                 # Version of zero represents a developer build.
                 if version < versionDB and version != 0:
@@ -904,7 +902,7 @@ Thanks,\n\
                 if not player_id:
                     return
 
-                if not self.players.is_uniqueid_exempt(player_id):
+                if not player_service.is_uniqueid_exempt(player_id):
                     # UniqueID check was rejected (too many accounts or tamper-evident madness)
                     if not self.validate_unique_id(cursor, player_id, steamid, message['unique_id']):
                         return
@@ -924,7 +922,7 @@ Thanks,\n\
                 except pymysql.OperationalError:
                     self._logger.info("Failure updating NickServ password for {}".format(login))
 
-            permission_group = self.players.get_permission_group(player_id)
+            permission_group = player_service.get_permission_group(player_id)
             self.player = Player(login=str(login),
                                  session=self.session,
                                  ip=self.ip,
@@ -937,7 +935,7 @@ Thanks,\n\
             if self.player.mod:
                 self.sendJSON({"command": "social", "power": permission_group})
 
-            yield from self.players.fetch_player_data(self.player)
+            yield from player_service.fetch_player_data(self.player)
 
             # Country
             # -------
@@ -1057,13 +1055,13 @@ Thanks,\n\
                 avatar = {"url": str(query.value(0)), "tooltip": str(query.value(1))}
                 self.player.avatar = avatar
 
-            self.players.addUser(self.player)
+            player_service.addUser(self.player)
 
             self.sendJSON(dict(command="welcome", id=self.player.id, login=login))
 
             self.protocol.send_messages(
                 [player.to_dict()
-                 for player in self.players.players]
+                 for player in player_service]
             )
 
             query = QSqlQuery(self.db)
@@ -1104,7 +1102,7 @@ Thanks,\n\
             self.send_tutorial_section()
 
             player_info = self.player.to_dict()
-            for player in self.players.players:
+            for player in player_service:
                 if player != self.player:
                     lobby = player.lobby_connection
                     if lobby is not None:
@@ -1125,7 +1123,7 @@ Thanks,\n\
 
             # for matchmaker match...
 
-            container = self.games.getContainer("ladder1v1")
+            container = game_service.getContainer("ladder1v1")
             if container is not None:
                 for player in container.players:
                     if player == self.player:
@@ -1312,7 +1310,7 @@ Thanks,\n\
         password = message.get('password', None)
 
         self._logger.debug("joining: {}:{} with pw: {}".format(uuid, port, password))
-        game = self.games.find_by_id(uuid)
+        game = game_service.find_by_id(uuid)
         self._logger.debug("game found: {}".format(game))
 
         if not game or game.state != GameState.LOBBY:
@@ -1353,12 +1351,12 @@ Thanks,\n\
                                text="You are banned from the matchmaker. Contact an admin to have the reason."))
             return
 
-        container = self.games.getContainer(mod)
+        container = game_service.getContainer(mod)
         if container is not None:
 
             if mod == "ladder1v1":
                 if state == "stop":
-                    for player in self.players.players:
+                    for player in player_service:
                         if player.lobbyThread:
                             player.lobbyThread.removePotentialPlayer(self.player.login)
 
@@ -1399,7 +1397,7 @@ Thanks,\n\
             self.warned = False
 
     def warnPotentialOpponent(self):
-        for player in self.players.players:
+        for player in player_service:
             if player == self.player:
                 continue
                 #minimum game quality to start a match.
@@ -1454,7 +1452,7 @@ Thanks,\n\
         mapname = message.get('mapname')
         password = message.get('password')
 
-        game = self.games.create_game(**{
+        game = game_service.create_game(**{
             'visibility': access,
             'game_mode': mod.lower(),
             'host': self.player,
@@ -1544,7 +1542,7 @@ Thanks,\n\
         if "command" in data_dictionary:
             if data_dictionary["command"] == "game_launch":
                 # if we join a game, we are not a potential player anymore
-                for player in self.players:
+                for player in player_service:
                     if player.lobbyThread:
                         player.lobbyThread.removePotentialPlayer(self.player.login)
 
@@ -1554,7 +1552,7 @@ Thanks,\n\
             self._logger.exception(ex)
 
     def on_connection_lost(self):
-        for player in self.players.players:
+        for player in player_service:
             if player.lobbyThread:
                 player.lobbyThread.removePotentialPlayer(self.player.login)
-        self.players.remove_player(self.player)
+        player_service.remove_player(self.player)

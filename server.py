@@ -10,6 +10,11 @@ Options:
 
 import asyncio
 
+if __name__ == '__main__':
+    app = QtCore.QCoreApplication(sys.argv)
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+
 
 import sys
 import logging
@@ -17,15 +22,14 @@ from logging import handlers
 import signal
 import socket
 
-import aiomysql
 from quamash import QEventLoop
 from PySide import QtSql, QtCore
 from PySide.QtCore import QTimer
 
 from passwords import DB_SERVER, DB_PORT, DB_LOGIN, DB_PASSWORD, DB_TABLE
 from server.db import ContextCursor
-from server.game_service import GameService
-from server.player_service import PlayerService
+from server.gameservice import GameService
+from server.playerservice import PlayerService
 import config
 import server
 
@@ -37,13 +41,8 @@ if __name__ == '__main__':
             if not done.done():
                 done.set_result(0)
 
-        app = QtCore.QCoreApplication(sys.argv)
-
         if config.LIBRARY_PATH:
             app.addLibraryPath(config.LIBRARY_PATH)
-
-        loop = QEventLoop(app)
-        asyncio.set_event_loop(loop)
 
         done = asyncio.Future()
 
@@ -93,15 +92,13 @@ if __name__ == '__main__':
                                                    loop=loop))
         db_pool = loop.run_until_complete(pool_fut)
 
-        players_online = PlayerService(db_pool)
-        games = GameService(players_online, db)
+        player_service = PlayerService.initialise_player_service()
+        game_service = GameService.initialise_game_service(player_service, db)
 
-        ctrl_server = loop.run_until_complete(server.run_control_server(loop, players_online, games))
+        ctrl_server = loop.run_until_complete(server.run_control_server(loop))
 
         lobby_server = loop.run_until_complete(
             server.run_lobby_server(('', 8001),
-                                    players_online,
-                                    games,
                                     db,
                                     loop)
         )
@@ -109,8 +106,6 @@ if __name__ == '__main__':
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         nat_packet_server, game_server = \
             server.run_game_server(('', 8000),
-                                   players_online,
-                                   games,
                                    loop)
         game_server = loop.run_until_complete(game_server)
 

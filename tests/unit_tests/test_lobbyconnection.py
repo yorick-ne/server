@@ -5,10 +5,10 @@ import pytest
 from unittest import mock
 from server import ServerContext, QDataStreamProtocol, GameState
 
-from server.game_service import GameService
+from server.gameservice import GameService
 from server.games import Game
 from server.lobbyconnection import LobbyConnection
-from server.player_service import PlayerService
+from server.playerservice import PlayerService
 from server.players import Player
 
 

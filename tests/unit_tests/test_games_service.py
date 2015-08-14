@@ -1,5 +1,5 @@
 import server
-from server.game_service import GameService
+from server.gameservice import GameService
 from server.players import PlayerState
 
 

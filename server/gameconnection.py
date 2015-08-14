@@ -7,21 +7,20 @@ import functools
 
 import json
 import config
-import server
 
 from server.abc.base_game import GameConnectionState
 from server.connectivity import TestPeer, ConnectivityState
 from server.games.game import Game, GameState, Victory
 from server.decorators import with_logger, timed
-from server.game_service import GameService
 from server.players import PlayerState
 from server.protocol import GpgNetServerProtocol
 from server.subscribable import Subscribable
+
+from server import game_service
+from server import player_service
 from server.db import db_pool
 
-
 logger = logging.getLogger(__name__)
-
 
 PROXY_SERVER = ('127.0.0.1', 12000)
 
@@ -30,7 +29,7 @@ class GameConnection(Subscribable, GpgNetServerProtocol):
     """
     Responsible for connections to the game, using the GPGNet protocol
     """
-    def __init__(self, loop, users, games: GameService):
+    def __init__(self, loop):
         """
         Construct a new GameConnection
 
@@ -44,8 +43,6 @@ class GameConnection(Subscribable, GpgNetServerProtocol):
         self._logger.info('GameConnection initializing')
         self._state = GameConnectionState.INITIALIZING
         self.loop = loop
-        self.users = users
-        self.games = games
 
         self.log = logging.getLogger(__name__)
         self.initTime = time.time()
@@ -114,7 +111,7 @@ class GameConnection(Subscribable, GpgNetServerProtocol):
         behind the same public address which would cause problems with the old design.
         """
         try:
-            self._player = self.users.find_by_ip_and_session(self.ip, session)
+            self._player = player_service.find_by_ip_and_session(self.ip, session)
             self.log.debug("Resolved user to {} through lookup by {}:{}".format(self.player, self.ip, session))
 
             if self.player is None:
@@ -579,7 +576,7 @@ class GameConnection(Subscribable, GpgNetServerProtocol):
 
     def _mark_dirty(self):
         if self.game:
-            self.games.mark_dirty(self.game)
+            game_service.mark_dirty(self.game)
 
     def abort(self):
         """

@@ -3,7 +3,7 @@ import pytest
 
 from unittest import mock
 
-from server.player_service import PlayerService
+from server.playerservice import PlayerService
 from server.players import Player
 
 

@@ -9,8 +9,58 @@ these should be put in the ``conftest.py'' relative to it.
 import asyncio
 
 import logging
-import os
 import sys
+
+pool = None
+def make_db_pool(request, loop):
+    def opt(val):
+        return request.config.getoption(val)
+    host, user, pw, db = opt('--mysql_host'), opt('--mysql_username'), opt('--mysql_password'), opt('--mysql_database')
+    pool_fut = asyncio.async(server.db.connect(loop=loop,
+                                               host=host,
+                                               user=user,
+                                               password=pw,
+                                               db=db))
+    pool = loop.run_until_complete(pool_fut)
+
+    @asyncio.coroutine
+    def setup():
+        with (yield from pool) as conn:
+            cur = yield from conn.cursor()
+            with open('db-structure.sql', 'r', encoding='utf-8') as data:
+                yield from cur.execute('DROP DATABASE IF EXISTS `%s`;' % db)
+                yield from cur.execute('CREATE DATABASE IF NOT EXISTS `%s`;' % db)
+                yield from cur.execute("USE `%s`;" % db)
+                yield from cur.execute(data.read())
+            with open('tests/data/db-fixtures.sql', 'r', encoding='utf-8') as data:
+                yield from cur.execute(data.read())
+                yield from cur.close()
+
+    loop.run_until_complete(setup())
+
+    return pool
+
+@pytest.fixture
+def db_pool(request, loop):
+    def fin():
+        pool.close()
+        loop.run_until_complete(pool.wait_closed())
+
+    request.addfinalizer(fin)
+    pool = make_db_pool(request, loop)
+
+    return db_pool
+
+asyncio.get_event_loop().run_until_complete(asyncio.async(make_db_pool()))
+
+import server
+
+from server.abc.base_game import InitMode
+from server.players import PlayerState
+from server.players import Player
+from server.playerservice import PlayerService
+from server.gameservice import GameService
+from server.games import Game
 
 from server.qt_compat import QtCore, QtSql, QtNetwork
 
@@ -19,13 +69,6 @@ import pytest
 from unittest import mock
 from trueskill import Rating
 
-from server.abc.base_game import InitMode
-from server.game_service import GameService
-
-from server.players import PlayerState
-from server.players import Player
-from server.player_service import PlayerService
-from server.games import Game
 
 logging.getLogger().setLevel(logging.DEBUG)
 

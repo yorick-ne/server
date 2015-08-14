@@ -1,23 +1,35 @@
-from server import games
+import asyncio
 
+from server.db import db_pool
 from server.decorators import with_logger
-
 from server.games.game import Game
 from server.players import Player
-
-from PySide import QtSql
+from server.games import game_modes
 
 @with_logger
 class GameService:
     """
     Utility class for maintaining lifecycle of games
     """
+
     def __init__(self, players, db):
         self._dirty_games = set()
         self.players = players
         self.db = db
         self._containers = {}
         self.add_game_modes()
+
+        # The id of the last game inserted into the game_stats table. Used to give each game a
+        # unique id.
+        self.game_id_counter = 0
+
+    @asyncio.coroutine
+    def load_game_id_counter(self):
+        with (yield from db_pool) as conn:
+            cursor = yield from conn.cursor()
+
+            yield from cursor.execute("SELECT MAX(id) from game_stats")
+            (self.game_id_counter, ) = yield from cursor.fetchone()
 
     @property
     def dirty_games(self):
@@ -30,20 +42,17 @@ class GameService:
         self._dirty_games = set()
 
     def add_game_modes(self):
-        for name, nice_name, container in games.game_modes:
+        for name, nice_name, container in game_modes:
             self._containers[name] = container(name=name,
                                                nice_name=nice_name,
                                                db=self.db,
                                                games_service=self)
 
     # TODO: KILL
-    def createUuid(self, playerId):
-        query = QtSql.QSqlQuery(self.db)
-        queryStr = ("INSERT INTO game_stats (`host`) VALUE ( %i )" % playerId)
-        query.exec_(queryStr)
-        uuid = query.lastInsertId()
+    def createUuid(self):
+        self.game_id_counter += 1
 
-        return uuid
+        return self.game_id_counter
 
     def create_game(self,
                     visibility: str='public',
